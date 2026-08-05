@@ -23,7 +23,7 @@
     <main class="max-w-4xl mx-auto px-4 py-8 w-full flex-grow">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
             <h2 class="text-lg font-bold text-slate-800 mb-2">어떤 미술 수업을 준비하시나요?</h2>
-            <p class="text-sm text-slate-500 mb-6">조건을 선택하시면, 초등학생 눈높이에 맞춘 명화와 화풍별 맞춤 탐구 질문을 추천해 드립니다.</p>
+            <p class="text-sm text-slate-500 mb-6">조건을 선택하시면, 초등학생 눈높이에 맞춘 3가지 명화와 화풍별 맞춤 탐구 질문을 추천해 드립니다.</p>
             
             <form id="docentForm" onsubmit="generateRecommendation(event)" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -55,14 +55,14 @@
                 </div>
 
                 <button type="submit" id="submitBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition shadow-sm shadow-emerald-200 flex justify-center items-center space-x-2">
-                    <span>✨ 맞춤형 미술 감상 카드 생성하기</span>
+                    <span>✨ 맞춤형 미술 감상 카드 3개 생성하기</span>
                 </button>
             </form>
         </div>
 
         <div id="loading" class="hidden text-center py-12">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-400 border-t-transparent mb-3"></div>
-            <p class="text-sm text-slate-500">인공지능 큐레이터가 적합한 작품과 화풍별 맞춤 질문을 구성하고 있어요...</p>
+            <p class="text-sm text-slate-500">인공지능 큐레이터가 적합한 작품 3개와 맞춤 질문을 구성하고 있어요...</p>
         </div>
 
         <div id="resultContainer" class="space-y-6"></div>
@@ -95,7 +95,6 @@
             container.innerHTML = '';
 
             try {
-                // 우리의 백엔드 서버less 함수로 요청
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -106,22 +105,32 @@
                 if (!response.ok) throw new Error(resultData.error || '생성 실패');
 
                 loading.classList.add('hidden');
-                displayResult(resultData, grade, topic);
-                saveToLocalStorage(resultData, grade, topic);
+                
+                // 데이터가 배열인지 확인 후 출력 및 저장
+                if (Array.isArray(resultData)) {
+                    displayResult(resultData, grade, topic);
+                    saveToLocalStorage(resultData, grade, topic);
+                } else {
+                    displayResult([resultData], grade, topic);
+                    saveToLocalStorage([resultData], grade, topic);
+                }
+
             } catch (error) {
                 alert('오류가 발생했습니다: ' + error.message);
                 loading.classList.add('hidden');
             }
         }
 
-        function displayResult(data, grade, topic) {
+        function displayResult(dataArray, grade, topic) {
             const container = document.getElementById('resultContainer');
-            container.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 relative overflow-hidden">
+            
+            // 배열 내의 모든 작품 데이터를 HTML로 변환하여 하나로 합침
+            const htmlContent = dataArray.map((data, index) => `
+                <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 relative overflow-hidden mb-6">
                     <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">
-                        ${grade} 맞춤 추천
+                        추천 작품 ${index + 1}
                     </div>
-                    <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">주제: ${topic}</span>
+                    <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">대상: ${grade} | 주제: ${topic}</span>
                     <h3 class="text-xl font-extrabold text-slate-800 mt-3 mb-1">${data.title}</h3>
                     <p class="text-sm text-slate-500 mb-4">${data.artist} | ${data.year} | 소장: ${data.location}</p>
 
@@ -131,7 +140,7 @@
                     </div>
 
                     <div class="space-y-3">
-                        <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider">❓ 학생 주도적 탐구 질문 3단계</h4>
+                        <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider">❓ 탐구 질문 3단계</h4>
                         <div class="flex items-start space-x-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                             <span class="text-blue-500 font-bold text-sm">1. 객관</span>
                             <p class="text-sm text-slate-700">${data.objective}</p>
@@ -146,13 +155,27 @@
                         </div>
                     </div>
                 </div>
-            `;
+            `).join('');
+
+            container.innerHTML = htmlContent;
         }
 
-        function saveToLocalStorage(data, grade, topic) {
+        function saveToLocalStorage(dataArray, grade, topic) {
             let history = JSON.parse(localStorage.getItem('docent_history') || '[]');
-            history.unshift({ ...data, grade, topic, date: new Date().toLocaleDateString() });
-            if (history.length > 10) history.pop();
+            
+            // 3개의 작품을 각각의 개별 기록으로 가공
+            const newRecords = dataArray.map(data => ({
+                ...data, 
+                grade, 
+                topic, 
+                date: new Date().toLocaleDateString() 
+            }));
+
+            history = [...newRecords, ...history];
+            
+            // 한 번에 3개씩 저장되므로 히스토리 최대치를 30개로 늘림
+            if (history.length > 30) history = history.slice(0, 30);
+            
             localStorage.setItem('docent_history', JSON.stringify(history));
             renderSavedList();
         }
@@ -181,7 +204,8 @@
 
         function loadSavedItem(index) {
             let history = JSON.parse(localStorage.getItem('docent_history') || '[]');
-            displayResult(history[index], history[index].grade, history[index].topic);
+            // 과거 기록 1개를 배열 형태로 감싸서 displayResult 함수에 전달
+            displayResult([history[index]], history[index].grade, history[index].topic);
             window.scrollTo({ top: 400, behavior: 'smooth' });
         }
 
