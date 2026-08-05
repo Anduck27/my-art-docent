@@ -42,10 +42,8 @@ export default async function handler(req, res) {
 
     let textResponse = data.candidates[0].content.parts[0].text;
     
-    // 마크다운 백틱(```json ... ```)이 포함되어 있으면 깔끔하게 제거
     textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    // 혹시 모를 앞뒤 공백이나 잡다한 텍스트 제거를 위해 첫 '{'와 마지막 '}' 사이만 추출
     const jsonStart = textResponse.indexOf('{');
     const jsonEnd = textResponse.lastIndexOf('}');
     if (jsonStart !== -1 && jsonEnd !== -1) {
