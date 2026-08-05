@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교실 속 미술관 도슨트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <style> body { font-family: 'Pretendard', sans-serif; } </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">🖼️</span>
+                <h1 class="text-xl font-bold text-slate-700">교실 속 미술관 도슨트</h1>
+            </div>
+            <span class="text-xs bg-emerald-50 text-emerald-600 font-semibold px-3 py-1 rounded-full">연수용 공식 버전</span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-8 w-full flex-grow">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+            <h2 class="text-lg font-bold text-slate-800 mb-2">어떤 미술 수업을 준비하시나요?</h2>
+            <p class="text-sm text-slate-500 mb-6">조건을 선택하시면, 초등학생 눈높이에 맞춘 명화와 화풍별 맞춤 탐구 질문을 추천해 드립니다.</p>
+            
+            <form id="docentForm" onsubmit="generateRecommendation(event)" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">대상 학년</label>
+                        <select id="grade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                            <option value="전학년" selected>전학년 공통</option>
+                            <option value="1학년">초등학교 1학년</option>
+                            <option value="2학년">초등학교 2학년</option>
+                            <option value="3학년">초등학교 3학년</option>
+                            <option value="4학년">초등학교 4학년</option>
+                            <option value="5학년">초등학교 5학년</option>
+                            <option value="6학년">초등학교 6학년</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">작품 종류</label>
+                        <select id="artType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                            <option value="무관">상관없음 (동·서양화 균형)</option>
+                            <option value="동양화">동양화 (수묵화·민화 등)</option>
+                            <option value="서양화">서양화 (유화·근현대 미술 등)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">수업 주제 또는 상황 (예: 여름날의 풍경, 감정을 표현하기 등)</label>
+                    <input type="text" id="topic" placeholder="예: 고요한 자연 풍경, 신비로운 색채 등" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition shadow-sm shadow-emerald-200 flex justify-center items-center space-x-2">
+                    <span>✨ 맞춤형 미술 감상 카드 생성하기</span>
+                </button>
+            </form>
+        </div>
+
+        <div id="loading" class="hidden text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-400 border-t-transparent mb-3"></div>
+            <p class="text-sm text-slate-500">인공지능 큐레이터가 적합한 작품과 화풍별 맞춤 질문을 구성하고 있어요...</p>
+        </div>
+
+        <div id="resultContainer" class="space-y-6"></div>
+
+        <div class="mt-12">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-md font-bold text-slate-700">📦 나만의 수업 보관함 (내 기록)</h3>
+                <button onclick="clearStorage()" class="text-xs text-rose-500 hover:underline">모두 지우기</button>
+            </div>
+            <div id="savedList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-16 py-6 text-center text-xs text-slate-400">
+        <p>교실 속 미술관 도슨트 — 초등 교사를 위한 스마트 에듀테크 웹앱</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => { renderSavedList(); });
+
+        async function generateRecommendation(event) {
+            event.preventDefault();
+            const grade = document.getElementById('grade').value;
+            const artType = document.getElementById('artType').value;
+            const topic = document.getElementById('topic').value;
+
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('resultContainer');
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+
+            try {
+                // 우리의 백엔드 서버less 함수로 요청
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ grade, artType, topic })
+                });
+
+                const resultData = await response.json();
+                if (!response.ok) throw new Error(resultData.error || '생성 실패');
+
+                loading.classList.add('hidden');
+                displayResult(resultData, grade, topic);
+                saveToLocalStorage(resultData, grade, topic);
+            } catch (error) {
+                alert('오류가 발생했습니다: ' + error.message);
+                loading.classList.add('hidden');
+            }
+        }
+
+        function displayResult(data, grade, topic) {
+            const container = document.getElementById('resultContainer');
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">
+                        ${grade} 맞춤 추천
+                    </div>
+                    <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">주제: ${topic}</span>
+                    <h3 class="text-xl font-extrabold text-slate-800 mt-3 mb-1">${data.title}</h3>
+                    <p class="text-sm text-slate-500 mb-4">${data.artist} | ${data.year} | 소장: ${data.location}</p>
+
+                    <div class="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
+                        <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">💡 교사용 작품 해설</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed">${data.commentary}</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold text-slate-600 uppercase tracking-wider">❓ 학생 주도적 탐구 질문 3단계</h4>
+                        <div class="flex items-start space-x-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                            <span class="text-blue-500 font-bold text-sm">1. 객관</span>
+                            <p class="text-sm text-slate-700">${data.objective}</p>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                            <span class="text-amber-500 font-bold text-sm">2. 주관</span>
+                            <p class="text-sm text-slate-700">${data.subjective}</p>
+                        </div>
+                        <div class="flex items-start space-x-3 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                            <span class="text-emerald-500 font-bold text-sm">3. 평가</span>
+                            <p class="text-sm text-slate-700">${data.evaluative}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function saveToLocalStorage(data, grade, topic) {
+            let history = JSON.parse(localStorage.getItem('docent_history') || '[]');
+            history.unshift({ ...data, grade, topic, date: new Date().toLocaleDateString() });
+            if (history.length > 10) history.pop();
+            localStorage.setItem('docent_history', JSON.stringify(history));
+            renderSavedList();
+        }
+
+        function renderSavedList() {
+            const listEl = document.getElementById('savedList');
+            let history = JSON.parse(localStorage.getItem('docent_history') || '[]');
+            if (history.length === 0) {
+                listEl.innerHTML = `<p class="text-xs text-slate-400 col-span-2 py-4 text-center bg-white rounded-xl border border-slate-200">아직 저장된 감상 기록이 없습니다.</p>`;
+                return;
+            }
+            listEl.innerHTML = history.map((item, index) => `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">${item.grade} | ${item.topic}</span>
+                            <span class="text-[10px] text-slate-400">${item.date}</span>
+                        </div>
+                        <h5 class="text-sm font-bold text-slate-800">${item.title}</h5>
+                        <p class="text-xs text-slate-500 mb-3">${item.artist}</p>
+                    </div>
+                    <button onclick="loadSavedItem(${index})" class="text-xs text-emerald-600 font-semibold self-start hover:underline">다시 불러오기 &rarr;</button>
+                </div>
+            `).join('');
+        }
+
+        function loadSavedItem(index) {
+            let history = JSON.parse(localStorage.getItem('docent_history') || '[]');
+            displayResult(history[index], history[index].grade, history[index].topic);
+            window.scrollTo({ top: 400, behavior: 'smooth' });
+        }
+
+        function clearStorage() {
+            if (confirm('저장된 모든 기록을 삭제하시겠습니까?')) {
+                localStorage.removeItem('docent_history');
+                renderSavedList();
+            }
+        }
+    </script>
+</body>
+</html>
