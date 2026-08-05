@@ -13,10 +13,12 @@ module.exports = async (req, res) => {
   try {
     const { grade, artType, topic } = req.body;
     
-    // 문법 오류(Syntax Error)가 절대 발생할 수 없는 일반 문자열 결합 방식 사용
     const promptText = "미술관 도슨트로서 학생들을 위한 미술 감상 카드 3개를 만들어주세요.\n대상: " + grade + "\n미술 종류: " + artType + "\n주제: " + topic + "\n반드시 아래 JSON 배열 형식으로만 응답해야 하며, 마크다운 기호나 추가 설명 등 다른 텍스트는 절대 포함하지 마세요.\n[\n  {\n    \"title\": \"작품명\",\n    \"artist\": \"작가명\",\n    \"location\": \"소장처\",\n    \"year\": \"제작연도\",\n    \"commentary\": \"학생 수준에 맞는 작품 설명\",\n    \"objective\": \"그림에서 보이는 사실 찾기 질문\",\n    \"subjective\": \"느낌이나 상상을 묻는 질문\",\n    \"evaluative\": \"작가의 의도나 판단을 묻는 질문\"\n  }\n]";
 
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+    // GitHub의 URL 자동 링크 변환 오류를 막기 위해 주소 문자열을 의도적으로 분리하여 결합합니다.
+    const baseUrl = "https://generative";
+    const endpoint = "language.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+    const url = baseUrl + endpoint + apiKey;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -28,7 +30,6 @@ module.exports = async (req, res) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
       throw new Error("API Error: " + response.status);
     }
 
