@@ -36,23 +36,12 @@ export default async function handler(req, res) {
 
     const data = await apiResponse.json();
     
+    // 구글이 보낸 응답 전체를 서버 로그에 출력해서 원인을 찾을 수 있게 함
+    console.log('Google API Response:', JSON.stringify(data));
+
     if (!data.candidates || !data.candidates[0].content) {
-      throw new Error('Gemini API 응답 구조가 올바르지 않습니다.');
+      return res.status(500).json({ error: '구글 API 거부 또는 오류 응답: ' + JSON.stringify(data) });
     }
 
     let textResponse = data.candidates[0].content.parts[0].text;
-    
-    textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    const jsonStart = textResponse.indexOf('{');
-    const jsonEnd = textResponse.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-      textResponse = textResponse.substring(jsonStart, jsonEnd + 1);
-    }
-
-    const parsedData = JSON.parse(textResponse);
-    return res.status(200).json(parsedData);
-  } catch (error) {
-    return res.status(500).json({ error: 'AI 응답 생성 중 오류가 발생했습니다: ' + error.message });
-  }
-}
+    textResponse = textResponse.replace(/```json/g, '').replace(/
