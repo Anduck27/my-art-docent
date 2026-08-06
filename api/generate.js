@@ -25,10 +25,23 @@ module.exports = async (req, res) => {
   try {
     const { grade, artType, topic } = req.body;
 
-    // 1. 강제 금칙어 1차 방어선 (배열에 필요한 단어를 계속 추가하십시오)
-    const blockList = ['섹스', '성관계', '성기', '야동', '자위', '목이 잘린', '살인', '자살', '강간', '폭력'];
-    const hasBadWord = blockList.some(word => topic.includes(word));
-    
+    // 1. 강제 금칙어 1차 방어선 (정규표현식 적용)
+    // [0-9\W]* 는 글자 사이에 숫자나 특수기호, 공백이 들어가는 것을 모두 잡아냅니다.
+    const blockPatterns = [
+      /시[0-9\W]*발/, /씨[0-9\W]*발/, /ㅅ[0-9\W]*ㅂ/, // 시발, 씨발, ㅅㅂ 변형
+      /병[0-9\W]*신/, /ㅂ[0-9\W]*ㅅ/, /등[0-9\W]*신/, // 병신, ㅂㅅ 변형
+      /새[0-9\W]*끼/, /개[0-9\W]*새[0-9\W]*끼/,      // 새끼, 개새끼 변형
+      /좆/, /존[0-9\W]*나/, /졸[0-9\W]*라/,           // 좆, 존나 변형
+      /지[0-9\W]*랄/, /ㅈ[0-9\W]*ㄹ/,               // 지랄 변형
+      /미[0-9\W]*친/, /ㅁ[0-9\W]*ㅊ/,               // 미친 변형
+      /tlqkf/, /rotoRL/, /qudtls/, /wht/, /wlfkf/,    // 영타(QWERTY) 입력 계열
+      /섹스/, /성관계/, /성기/, /야동/, /자위/, /딸딸이/, // 선정성
+      /살인/, /자살/, /강간/, /폭력/, /목이\s*잘린/     // 폭력성 및 특정 잔혹 묘사
+    ];
+
+    // topic 문자열이 위 패턴 중 하나라도 일치하면 true 반환
+    const hasBadWord = blockPatterns.some(pattern => pattern.test(topic));
+
     if (hasBadWord) {
       // AI에 요청을 보내기도 전에 즉시 차단
       throw new Error("부적절한 단어가 포함되어 있습니다.");
