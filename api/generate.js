@@ -7,7 +7,6 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  // API 키 가져오기 및 혹시 모를 띄어쓰기 빈칸 제거 (.trim)
   const rawApiKey = process.env.GEMINI_API_KEY;
   if (!rawApiKey) return res.status(500).json({ error: 'API Key missing' });
   const apiKey = rawApiKey.trim();
@@ -15,11 +14,10 @@ module.exports = async (req, res) => {
   try {
     const { grade, artType, topic } = req.body;
     
-    // 프롬프트 작성
     const promptText = "미술관 도슨트로서 학생들을 위한 미술 감상 카드 3개를 만들어주세요.\n대상: " + grade + "\n미술 종류: " + artType + "\n주제: " + topic + "\n반드시 아래 JSON 배열 형식으로만 응답해야 하며, 마크다운 기호나 추가 설명 등 다른 텍스트는 절대 포함하지 마세요.\n[\n  {\n    \"title\": \"작품명\",\n    \"artist\": \"작가명\",\n    \"location\": \"소장처\",\n    \"year\": \"제작연도\",\n    \"commentary\": \"학생 수준에 맞는 작품 설명\",\n    \"objective\": \"그림에서 보이는 사실 찾기 질문\",\n    \"subjective\": \"느낌이나 상상을 묻는 질문\",\n    \"evaluative\": \"작가의 의도나 판단을 묻는 질문\"\n  }\n]";
 
-    // [핵심 해결 부분] 특수기호 오류를 막기 위해 일반 따옴표와 더하기(+)를 사용
-    const baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=";
+    // v1beta 대신 v1 정식 API 버전을 사용하고, 모델명을 gemini-1.5-flash로 지정합니다.
+    const baseUrl = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=";
     const url = baseUrl + apiKey;
 
     const response = await fetch(url, {
@@ -39,9 +37,7 @@ module.exports = async (req, res) => {
     const data = await response.json();
     let responseText = data.candidates[0].content.parts[0].text;
 
-    // AI가 불필요한 기호를 보낼 경우 제거
     responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-
     const result = JSON.parse(responseText);
 
     return res.status(200).json(result);
