@@ -1,10 +1,23 @@
 module.exports = async (req, res) => {
+  const origin = req.headers.origin;
+
+  // 보안 수정 1: my-art-docent 가 포함된 도메인에서만 접근 허용 (와일드카드 * 제거)
+  if (origin && origin.includes('my-art-docent')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
   res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'OPTIONS') {
+    // 보안 수정 2: 허용되지 않은 외부 출처의 사전 요청(Preflight) 강제 차단
+    if (!origin || !origin.includes('my-art-docent')) {
+      return res.status(403).end(); 
+    }
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const rawApiKey = process.env.GEMINI_API_KEY;
@@ -16,7 +29,7 @@ module.exports = async (req, res) => {
     
     const promptText = "미술관 도슨트로서 학생들을 위한 미술 감상 카드 3개를 만들어주세요.\n대상: " + grade + "\n미술 종류: " + artType + "\n주제: " + topic + "\n반드시 아래 JSON 배열 형식으로만 응답해야 하며, 마크다운 기호나 추가 설명 등 다른 텍스트는 절대 포함하지 마세요.\n[\n  {\n    \"title\": \"작품명\",\n    \"artist\": \"작가명\",\n    \"location\": \"소장처\",\n    \"year\": \"제작연도\",\n    \"commentary\": \"학생 수준에 맞는 작품 설명\",\n    \"objective\": \"그림에서 보이는 사실 찾기 질문\",\n    \"subjective\": \"느낌이나 상상을 묻는 질문\",\n    \"evaluative\": \"작가의 의도나 판단을 묻는 질문\"\n  }\n]";
 
-    // 선생님의 권한 목록에 있는 gemini-2.5-flash 모델로 확정하여 호출합니다.
+    // 최신 성능 모델인 3.5-flash 적용
     const baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=";
     const url = baseUrl + apiKey;
 
