@@ -24,9 +24,33 @@ module.exports = async (req, res) => {
 
   try {
     const { grade, artType, topic } = req.body;
+
+    // 1. 강제 금칙어 1차 방어선 (배열에 필요한 단어를 계속 추가하십시오)
+    const blockList = ['섹스', '성관계', '성기', '야동', '자위', '목이 잘린', '살인', '자살', '강간', '폭력'];
+    const hasBadWord = blockList.some(word => topic.includes(word));
     
-    // 수정됨: evaluative(평가 질문) 내용을 학생의 주관적 평가와 판단을 유도하도록 변경
-    const promptText = "미술관 도슨트로서 학생들을 위한 미술 감상 카드 3개를 만들어주세요.\n대상: " + grade + "\n미술 종류: " + artType + "\n주제: " + topic + "\n반드시 아래 JSON 배열 형식으로만 응답해야 하며, 마크다운 기호나 추가 설명 등 다른 텍스트는 절대 포함하지 마세요.\n[\n  {\n    \"title\": \"작품명\",\n    \"artist\": \"작가명\",\n    \"location\": \"소장처\",\n    \"year\": \"제작연도\",\n    \"commentary\": \"학생 수준에 맞는 작품 설명\",\n    \"objective\": \"그림에서 보이는 사실 찾기 질문\",\n    \"subjective\": \"느낌이나 상상을 묻는 질문\",\n    \"evaluative\": \"작품의 가치나 표현 방식에 대해 학생이 직접 평가하고 판단을 내리도록 유도하는 질문\"\n  }\n]";
+    if (hasBadWord) {
+      // AI에 요청을 보내기도 전에 즉시 차단
+      throw new Error("부적절한 단어가 포함되어 있습니다.");
+    }
+    
+    // 2. 프롬프트 개선: 학년(grade) 반영 및 평가 질문의 명확한 통제
+    const promptText = `미술관 도슨트로서 초등학교 ${grade} 학생들을 위한 미술 감상 카드 3개를 만들어주세요.
+미술 종류: ${artType}
+주제: ${topic}
+반드시 아래 JSON 배열 형식으로만 응답해야 하며, 마크다운 기호나 추가 설명 등 다른 텍스트는 절대 포함하지 마세요.
+[
+  {
+    "title": "작품명",
+    "artist": "작가명",
+    "location": "소장처",
+    "year": "제작연도",
+    "commentary": "${grade} 학생 수준에 맞는 친절하고 이해하기 쉬운 작품 설명",
+    "objective": "그림에서 눈으로 직접 관찰하고 찾을 수 있는 사실에 대한 질문",
+    "subjective": "그림을 보고 느껴지는 감정이나 재미있는 상상을 묻는 질문",
+    "evaluative": "절대 작가의 의도나 미술사적 지식을 묻지 마세요. ${grade} 학생 스스로 이 작품이 마음에 드는지 주관적 판단을 내릴 수 있는 매우 쉬운 질문만 하세요. (예: 이 그림에 별점 5점 만점 중 몇 점을 주고 싶나요?, 이 그림을 내 방에 걸어둔다면 어디가 좋을까요?, 이 그림을 친구에게 추천한다면 어떤 점을 말해주고 싶나요?)"
+  }
+]`;
 
     const baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=";
     const url = baseUrl + apiKey;
@@ -37,7 +61,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: { responseMimeType: "application/json" },
-        // 추가됨: 초등학교 환경에 맞춘 최고 수준의 유해성 차단 필터
+        // 2차 방어선: AI 자체 안전 설정
         safetySettings: [
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_LOW_AND_ABOVE" },
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_LOW_AND_ABOVE" },
@@ -54,12 +78,10 @@ module.exports = async (req, res) => {
 
     const data = await response.json();
 
-    // 추가됨: 사용자의 입력이 유해하여 프롬프트 단계에서 즉각 차단된 경우
     if (data.promptFeedback && data.promptFeedback.blockReason) {
       throw new Error("부적절한 단어가 포함되어 있습니다.");
     }
 
-    // 추가됨: 결과물 생성 중 유해성이 감지되어 답변 생성이 중단(SAFETY)된 경우
     if (!data.candidates || data.candidates.length === 0 || data.candidates[0].finishReason === 'SAFETY') {
       throw new Error("부적절한 단어가 포함되어 있습니다.");
     }
@@ -71,7 +93,6 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
     
   } catch (error) {
-    // 프론트엔드의 catch 블록으로 에러 메시지(error.message)를 고스란히 전달
     return res.status(500).json({ error: error.message });
   }
 };
